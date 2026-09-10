@@ -1,16 +1,28 @@
 {
-	"manifest_version": 1,
-	"id": "joplin.plugin.paste",
-	"app_min_version": "3.7",
-	"version": "1.0.0",
-	"name": "Paste",
-	"description": "",
-	"author": "",
-	"homepage_url": "",
-	"repository_url": "",
-	"keywords": [],
-	"categories": [],
-	"screenshots": [],
-	"icons": {},
-	"promo_tile": {}
+  "manifest_version": 1,
+  "id": "joplin.plugin.paste",
+  "app_min_version": "3.7",
+  "version": "1.0.2",
+  "name": "Paste as Markdown",
+  "description": "Paste clipboard content as Markdown with selectable formatting and tracking parameter removal.",
+  "author": "",
+  "homepage_url": "",
+  "repository_url": "",
+  "keywords": [
+    "paste",
+    "markdown",
+    "clipboard",
+    "privacy"
+  ],
+  "categories": [
+    "editor",
+    "productivity"
+  ],
+  "screenshots": [],
+  "icons": {},
+  "promo_tile": {},
+  "platforms": [
+    "desktop",
+    "mobile"
+  ]
 }
