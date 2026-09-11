@@ -31,5 +31,15 @@
   "dependencies": {
     "@mixmark-io/domino": "^2.2.0",
     "turndown": "^7.2.4"
+  },
+  "description": "Paste It for Joplin: convert pasted content to Markdown with formatting options and tracking URL cleanup.",
+  "author": "Jeremy Kao",
+  "homepage": "https://github.com/imsardine/joplin-plugin-pasteit",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/imsardine/joplin-plugin-pasteit.git"
+  },
+  "bugs": {
+    "url": "https://github.com/imsardine/joplin-plugin-pasteit/issues"
   }
 }
