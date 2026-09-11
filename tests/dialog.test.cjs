@@ -13,7 +13,7 @@ async function setup(platform) {
         // Neither platform may read clipboard data through the plugin API.
         clipboard: { readHtml: () => assert.fail('Unexpected clipboard read'), readText: () => assert.fail('Unexpected clipboard read'), writeText: async text => copied.push(text) },
         commands: { register: async c => { assert.equal(commands[c.name], undefined, 'Command must not collide with a built-in'); commands[c.name] = c.execute; }, execute: async (name, text) => { assert.equal(name, 'insertText'); inserted.push(text); } },
-        views: { toolbarButtons: { create: async (_id, command) => { assert.equal(command, 'pasteMarkdownPlugin.openDialog'); } }, menuItems: { create: async (_id, command) => { assert.equal(command, 'pasteMarkdownPlugin.openDialog'); } }, dialogs: {
+        views: { toolbarButtons: { create: async (_id, command) => { assert.equal(command, 'pasteItPlugin.openDialog'); } }, menuItems: { create: async (_id, command) => { assert.equal(command, 'pasteItPlugin.openDialog'); } }, dialogs: {
             create: async id => id, addScript: async () => {},
             setFitToContent: async (_id, enabled) => { assert.equal(enabled, false, 'Joplin must size the dialog from its host window on both platforms'); },
             setButtons: async () => {},
@@ -28,12 +28,12 @@ async function setup(platform) {
 }
 for (const platform of ['desktop', 'mobile']) test(`${platform} opens one dialog, starts empty and inserts edited Markdown`, async () => {
     const h = await setup(platform);
-    assert.deepEqual(Object.keys(h.commands), ['pasteAsMarkdown', 'pasteMarkdownPlugin.openDialog']);
+    assert.deepEqual(Object.keys(h.commands), ['pasteAsMarkdown', 'pasteItPlugin.openDialog']);
     h.replies.push({ id: 'ok', formData: { paste: { markdown: '**Hello** edited', draft: 'saved-draft' } } });
-    await h.commands['pasteMarkdownPlugin.openDialog']();
+    await h.commands['pasteItPlugin.openDialog']();
     assert.deepEqual(h.opened, ['pasteItPluginDialog']);
     assert.deepEqual(h.inserted, ['**Hello** edited']);
-    await h.commands['pasteMarkdownPlugin.openDialog']();
+    await h.commands['pasteItPlugin.openDialog']();
     assert.notEqual(h.rendered[0], h.rendered[1]);
     assert.doesNotMatch(h.rendered[1], /saved-draft|Hello/);
     assert.match(h.rendered[1], /<textarea[^>]*><\/textarea>/);
@@ -41,8 +41,8 @@ for (const platform of ['desktop', 'mobile']) test(`${platform} opens one dialog
     assert.match(h.rendered[1], /<\/textarea>\s*<button id="clear"/);
 });
 test('cancel never inserts; changed notes are rejected', async () => {
-    const h = await setup('mobile'); await h.commands['pasteMarkdownPlugin.openDialog']();
+    const h = await setup('mobile'); await h.commands['pasteItPlugin.openDialog']();
     h.replies.push(() => { h.switchNote(); return { id: 'ok', formData: { paste: { markdown: 'wrong note' } } }; });
-    await h.commands['pasteMarkdownPlugin.openDialog']();
+    await h.commands['pasteItPlugin.openDialog']();
     assert.deepEqual(h.inserted, []); assert.match(h.errors[0], /selected note changed/);
 });

@@ -78,7 +78,7 @@ npm ci
 npm test
 ```
 
-`npm test` builds the plugin and runs the conversion, dialog and WebView tests. Use `npm run dist` to build without running tests. Install the resulting `publish/joplin.plugin.paste.jpl` through Joplin's **Install from file** option.
+`npm test` builds the plugin and runs the conversion, dialog and WebView tests. Use `npm run dist` to build without running tests. Install the resulting `publish/joplin.plugin.pasteit.jpl` through Joplin's **Install from file** option.
 
 Automated tests use a DOM implementation and a simulated Joplin API. Native clipboard behavior requires testing in Joplin on the target device.
 

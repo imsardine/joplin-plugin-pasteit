@@ -5,11 +5,11 @@ import { defaults, labels, trackingDescription } from './converter';
 const escapeHtml = (value: string) => value.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 joplin.plugins.register({
     onStart: async () => {
-        await joplin.settings.registerSection('pasteMarkdown', { label: 'Paste It', iconName: 'fas fa-paste' });
+        await joplin.settings.registerSection('pasteIt', { label: 'Paste It', iconName: 'fas fa-paste' });
         const settings = {};
         for (const key of Object.keys(defaults)) settings[key] = {
             value: defaults[key], type: typeof defaults[key] === 'boolean' ? SettingItemType.Bool : SettingItemType.String,
-            section: 'pasteMarkdown', public: true, label: labels[key],
+            section: 'pasteIt', public: true, label: labels[key],
             ...(key === 'cleanTracking' ? { description: trackingDescription } : {}),
         };
         await joplin.settings.registerSettings(settings);
@@ -56,11 +56,11 @@ joplin.plugins.register({
                 await dialogs.showMessageBox(`Paste failed: ${error.message || String(error)}`);
             } finally { active = false; }
         };
-        await joplin.commands.register({ name: 'pasteMarkdownPlugin.openDialog', label: 'Paste It…', iconName: 'fas fa-paste', execute: open });
-        await joplin.views.toolbarButtons.create('pasteMarkdownButton', 'pasteMarkdownPlugin.openDialog', ToolbarButtonLocation.EditorToolbar);
+        await joplin.commands.register({ name: 'pasteItPlugin.openDialog', label: 'Paste It…', iconName: 'fas fa-paste', execute: open });
+        await joplin.views.toolbarButtons.create('pasteItButton', 'pasteItPlugin.openDialog', ToolbarButtonLocation.EditorToolbar);
         if (isDesktop) {
             await joplin.window.loadChromeCssFile(`${await joplin.plugins.installationDir()}/chrome.css`);
-            await joplin.views.menuItems.create('pasteMarkdownMenu', 'pasteMarkdownPlugin.openDialog', MenuItemLocation.Edit, { accelerator: 'CmdOrCtrl+Alt+V' });
+            await joplin.views.menuItems.create('pasteItMenu', 'pasteItPlugin.openDialog', MenuItemLocation.Edit, { accelerator: 'CmdOrCtrl+Alt+V' });
         }
         console.info('[Paste It] ready');
     },
