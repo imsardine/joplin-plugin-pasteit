@@ -1,7 +1,0 @@
-body { font: 14px var(--joplin-font-family, sans-serif); color: var(--joplin-color); background: var(--joplin-background-color); padding: 12px; }
-textarea { box-sizing: border-box; width: 100%; font: 13px monospace; margin: 8px 0; color: inherit; background: var(--joplin-background-color); }
-label { display: block; margin: 8px 0; }
-button { padding: 8px 12px; margin: 6px 6px 6px 0; cursor: pointer; }
-fieldset { margin: 12px 0; }
-input[type=text] { display: block; width: 95%; }
-#status { white-space: pre-wrap; }

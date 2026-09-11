@@ -1,0 +1,10 @@
+/* Scope host-window sizing to Paste It's iframe; leave other dialogs alone. */
+.user-webview-dialog:has(iframe[id$="pasteItPluginDialog"]) > .content {
+    box-sizing: border-box;
+    width: min(90vw, 52rem);
+    height: min(90vh, 54rem);
+}
+.user-webview-dialog:has(iframe[id$="pasteItPluginDialog"]) .user-dialog-wrapper {
+    min-width: 0;
+    min-height: 0;
+}

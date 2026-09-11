@@ -7,7 +7,7 @@ const { convert, defaults, cleanUrl } = require('../src/converter.ts');
 const html = (value, options = {}) => convert({ html: value }, { ...defaults, ...options });
 test('nested semantic formatting and independent toggles', () => {
     assert.equal(html('<p><strong>粗體 <em>斜體</em></strong></p>'), '**粗體 *斜體***');
-    assert.equal(html('<b>粗體</b> <i>斜體</i> <del>刪除</del>', { bold: false, strike: false }), '粗體 *斜體* 刪除');
+    assert.equal(html('<b>粗體</b> <i>斜體</i> <del>刪除</del>', { removeTextStyling: true }), '粗體 斜體 刪除');
 });
 test('inline CSS from rich clipboard sources', () => {
     assert.equal(html('<span style="font-weight:700;font-style:italic">Hello</span>'), '***Hello***');
@@ -15,7 +15,7 @@ test('inline CSS from rich clipboard sources', () => {
 test('headings lists quotes and code', () => {
     const value = html('<h2>Title</h2><ul><li>One</li><li>Two</li></ul><blockquote>Quote</blockquote><pre><code>a &lt; b</code></pre>');
     assert.match(value, /^## Title/); assert.match(value, /-\s+One/); assert.match(value, /> Quote/); assert.match(value, /```\na < b\n```/);
-    assert.equal(html('<h1>Title</h1><blockquote>Quote</blockquote>', { headings: false, quotes: false }), 'Title\n\nQuote');
+    assert.equal(html('<h1>Title</h1><blockquote>Quote</blockquote>', { removeTextStyling: true }), '# Title\n\n> Quote');
 });
 test('tracking cleanup preserves raw query encoding, duplicates, fragment and functional parameters', () => {
     assert.equal(cleanUrl('https://x.test/p?id=1&utm_source=a&id=2&q=a%20b&fbclid=x#part', defaults), 'https://x.test/p?id=1&id=2&q=a%20b#part');
@@ -27,17 +27,30 @@ test('custom parameters and malformed escaping', () => {
     assert.equal(cleanUrl('https://x.test/?track_id=1&id=2&%ZZ=3', { ...defaults, extraTracking: 'track_*' }), 'https://x.test/?id=2&%ZZ=3');
 });
 test('links preserve labels and escape destinations', () => {
-    assert.equal(html('<a href="https://x.test/a(b)?id=1&amp;utm_source=x#f">Read</a>'), '[Read](<https://x.test/a(b)?id=1#f>)');
-    assert.equal(html('<a href="https://x.test/">Read</a>', { links: false }), 'Read');
+    assert.equal(html('<a href="https://x.test/a(b)?id=1&amp;utm_source=x#f">Read</a>'), '[Read](https://x.test/a%28b%29?id=1#f)');
+    assert.equal(html('<a href="https://x.test/">Read</a>', { removeTextStyling: true }), '[Read](https://x.test/)');
     assert.equal(html('<a href="javascript:alert(1)">Read</a>'), 'Read');
 });
 test('untrusted HTML is never executed or retained', () => {
     assert.equal(html('<p onclick="alert(1)">Safe</p><script>alert(1)</script><style>body{}</style><iframe src="https://x.test"></iframe>'), 'Safe');
     assert.equal(html('<img src="https://x.test/pixel" alt="Picture">'), 'Picture');
-    assert.equal(html('<img src="https://x.test/a?utm_source=x" alt="Picture">', { images: true }), '![Picture](<https://x.test/a>)');
+    assert.equal(html('<img src="https://x.test/a?utm_source=x" alt="Picture">'), 'Picture');
 });
 test('plain text stays literal and URL punctuation is preserved', () => {
     assert.equal(convert({ text: '<b>literal</b> **existing**' }), '<b>literal</b> **existing**');
     assert.equal(convert({ text: 'See https://x.test/?id=1&utm_source=x.' }), 'See https://x.test/?id=1.');
     assert.equal(convert({ text: '' }), '');
+});
+
+test('removing text styling preserves inline code, code blocks and links', () => {
+    assert.equal(html('<b>Bold</b> <i>Italic</i> <s>Strike</s> <code>a &lt; b</code>', { removeTextStyling: true }), 'Bold Italic Strike `a < b`');
+    assert.match(html('<pre><code>example</code></pre>', { removeTextStyling: true }), /```\nexample\n```/);
+});
+
+test('block quote adds exactly one level including existing quotes and blank lines', () => {
+    assert.equal(html('<p>Hello</p><blockquote>Quoted</blockquote>', { addBlockQuote: true }), '> Hello\n>\n> > Quoted');
+    assert.equal(convert({ text: '> Existing\n\nText' }, { ...defaults, addBlockQuote: true }), '> > Existing\n>\n> Text');
+    assert.equal(convert({ text: '' }, { ...defaults, addBlockQuote: true }), '');
+    assert.equal(convert({ text: 'First\n  \n\t\nLast' }, { ...defaults, addBlockQuote: true }), '> First\n>\n>\n> Last');
+    assert.equal(defaults.addBlockQuote, false);
 });

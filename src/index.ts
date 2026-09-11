@@ -1,95 +1,67 @@
 import joplin from 'api';
-import { createMobilePaste } from './mobile';
 import { MenuItemLocation, SettingItemType, ToolbarButtonLocation } from 'api/types';
-import { convert, defaults, labels, Options } from './converter';
+import { defaults, labels, trackingDescription } from './converter';
 
+const escapeHtml = (value: string) => value.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 joplin.plugins.register({
     onStart: async () => {
-        await joplin.settings.registerSection('pasteMarkdown', { label: 'Paste as Markdown', iconName: 'fas fa-paste' });
+        await joplin.settings.registerSection('pasteMarkdown', { label: 'Paste It', iconName: 'fas fa-paste' });
         const settings = {};
         for (const key of Object.keys(defaults)) settings[key] = {
             value: defaults[key], type: typeof defaults[key] === 'boolean' ? SettingItemType.Bool : SettingItemType.String,
             section: 'pasteMarkdown', public: true, label: labels[key],
+            ...(key === 'cleanTracking' ? { description: trackingDescription } : {}),
         };
         await joplin.settings.registerSettings(settings);
-        const options = async (): Promise<Options> => {
-            const result = { ...defaults };
-            for (const key of Object.keys(defaults)) result[key] = await joplin.settings.value(key);
-            return result;
-        };
-        const platform = (await joplin.versionInfo()).platform;
-        const insert = async (markdown: string, expectedId?: string) => {
-            if (!markdown.trim()) throw new Error('沒有可插入的內容。');
-            const note = await joplin.workspace.selectedNote();
-            if (!note || (expectedId && note.id !== expectedId)) throw new Error('筆記已切換，請重新開啟貼上面板。');
-            if (note.markup_language !== 1) throw new Error('請選擇 Markdown 筆記並開啟 Markdown 編輯器。');
-            await joplin.commands.execute('insertText', markdown);
-        };
-        if (platform === 'mobile') {
-            const open = await createMobilePaste(options, insert);
-            for (const [name, label, iconName] of [
-                ['pasteAsMarkdown', '貼為 Markdown', 'fas fa-paste'],
-                ['pasteMarkdownOptions', '貼為 Markdown：選項與預覽', 'fas fa-sliders-h'],
-            ]) {
-                await joplin.commands.register({ name, label, iconName, execute: open });
-                await joplin.views.toolbarButtons.create(`${name}Button`, name, ToolbarButtonLocation.EditorToolbar);
-            }
-            console.info('[Paste as Markdown] 1.0.2 mobile ready');
-            return;
-        }
-        const panel = await joplin.views.panels.create('pasteMarkdownPanel');
-        await joplin.views.panels.setHtml(panel, `
-            <h2>貼為 Markdown</h2>
-            <p>在下方長按貼上或按 Ctrl/Cmd+V。格式取決於系統是否提供 HTML；只有純文字時無法還原格式。</p>
-            <label for="source">貼上內容</label><textarea id="source" rows="6" placeholder="在此貼上"></textarea>
-            <label><input id="rawHtml" type="checkbox">將內容視為 HTML 原始碼</label>
-            <button id="read">讀取純文字剪貼簿</button>
-            <fieldset id="options"><legend>本次保留效果與連結清理</legend></fieldset>
-            <button id="convert">轉換 / 更新預覽</button>
-            <label for="preview">Markdown 預覽（可編輯）</label><textarea id="preview" rows="8"></textarea>
-            <button id="insert">插入筆記</button><button id="copy">複製 Markdown</button>
-            <p id="status" role="status" aria-live="polite"></p>`);
-        await joplin.views.panels.hide(panel);
-        let targetNote: string | undefined;
-        await joplin.views.panels.onMessage(panel, async message => {
+        const dialogs = joplin.views.dialogs;
+        const dialog = await dialogs.create('pasteItPluginDialog');
+        await dialogs.addScript(dialog, './webview.css');
+        await dialogs.addScript(dialog, './webview.js');
+        const isDesktop = (await joplin.versionInfo()).platform === 'desktop';
+        // Let Joplin size the dialog from its host window, independently of content.
+        await dialogs.setFitToContent(dialog, false);
+        await dialogs.setButtons(dialog, [{ id: 'ok', title: 'Insert into note' }, { id: 'cancel', title: 'Close' }]);
+        let active = false;
+        let session = 0;
+        const open = async () => {
+            if (active) return;
+            active = true;
             try {
-                switch (message.type) {
-                    case 'init': return { options: await options(), labels };
-                    case 'read': return { text: await joplin.clipboard.readText() };
-                    case 'convert': return { markdown: convert(message.input, { ...await options(), ...message.options }) };
-                    case 'copy': await joplin.clipboard.writeText(message.markdown); return { ok: true };
-                    case 'insert':
-                        if (!targetNote) throw new Error('請先選擇筆記，再按工具列的貼上面板按鈕。');
-                        await insert(message.markdown, targetNote); return { ok: true };
+                const note = await joplin.workspace.selectedNote();
+                const fields = [];
+                for (const key of Object.keys(defaults)) {
+                    const value = await joplin.settings.value(key);
+                    fields.push(typeof defaults[key] === 'boolean'
+                        ? `<label><input data-option="${key}" type="checkbox" ${value ? 'checked' : ''}> ${labels[key]}</label>`
+                        : `<label>${labels[key]}<input data-option="${key}" type="text" value="${escapeHtml(value || '')}"></label>`);
+                    if (key === 'cleanTracking') fields.push(`<details><summary>Parameters removed by default</summary><p>${escapeHtml(trackingDescription)}</p></details>`);
                 }
-            } catch (error) { return { error: error.message || String(error) }; }
-        });
-        await joplin.views.panels.addScript(panel, './panel.css');
-        await joplin.views.panels.addScript(panel, './panel.js');
-        await joplin.commands.register({
-            name: 'pasteMarkdownOptions', label: '貼為 Markdown：選項與預覽', iconName: 'fas fa-sliders-h',
-            execute: async () => {
-                targetNote = (await joplin.workspace.selectedNote())?.id;
-                await joplin.views.panels.show(panel);
-            },
-        });
-        await joplin.commands.register({
-            name: 'pasteAsMarkdown', label: '貼為 Markdown', iconName: 'fas fa-paste',
-            execute: async () => {
-                try {
-                    const noteId = (await joplin.workspace.selectedNote())?.id;
-                    if (!noteId) throw new Error('請先選擇筆記。');
-                    const html = await joplin.clipboard.readHtml();
-                    const text = html ? '' : await joplin.clipboard.readText();
-                    await insert(convert({ html, text }, await options()), noteId);
-                } catch (error) { await joplin.views.dialogs.showMessageBox(`貼上失敗：${error.message || error}`); }
-            },
-        });
-        await joplin.views.toolbarButtons.create('pasteMarkdownButton', 'pasteAsMarkdown', ToolbarButtonLocation.EditorToolbar);
-        await joplin.views.toolbarButtons.create('pasteMarkdownOptionsButton', 'pasteMarkdownOptions', ToolbarButtonLocation.EditorToolbar);
-        if (platform === 'desktop') {
-            await joplin.views.menuItems.create('pasteMarkdownMenu', 'pasteAsMarkdown', MenuItemLocation.Edit, { accelerator: 'CmdOrCtrl+Alt+V' });
-            await joplin.views.menuItems.create('pasteMarkdownOptionsMenu', 'pasteMarkdownOptions', MenuItemLocation.Edit);
+                await dialogs.setHtml(dialog, `<div class="paste-dialog ${isDesktop ? 'desktop' : 'mobile'}"><h2>Paste It</h2><form name="paste" data-session="${++session}">
+                    <label for="markdown">Markdown (editable)</label><textarea id="markdown" name="markdown" rows="12" ${isDesktop ? 'autofocus' : ''} placeholder="Paste using Ctrl/Cmd+V or long-press → Paste. Markdown replaces the pasted content automatically."></textarea>
+                    <button id="clear" type="button">Clear</button>
+                    <p id="status" role="status" aria-live="polite">Ready to paste.</p>
+                    <fieldset id="options"><legend>Conversion options</legend>${fields.join('')}</fieldset>
+                    <p>Changing options rebuilds Markdown from the original paste and replaces manual edits.</p>
+                    </form></div>`);
+                const result = await dialogs.open(dialog);
+                if (result?.id !== 'ok') return;
+                const text = result.formData?.paste?.markdown;
+                if (!text?.trim()) throw new Error('Paste some content first.');
+                const current = await joplin.workspace.selectedNote();
+                if (!note || !current || current.id !== note.id) throw new Error('The selected note changed. Reopen the dialog before inserting.');
+                if (current.markup_language !== 1) throw new Error('Open a Markdown note in the Markdown editor.');
+                await joplin.commands.execute('insertText', text);
+            } catch (error) {
+                console.error('[Paste It] action failed', error);
+                await dialogs.showMessageBox(`Paste failed: ${error.message || String(error)}`);
+            } finally { active = false; }
+        };
+        await joplin.commands.register({ name: 'pasteMarkdownPlugin.openDialog', label: 'Paste It…', iconName: 'fas fa-paste', execute: open });
+        await joplin.views.toolbarButtons.create('pasteMarkdownButton', 'pasteMarkdownPlugin.openDialog', ToolbarButtonLocation.EditorToolbar);
+        if (isDesktop) {
+            await joplin.window.loadChromeCssFile(`${await joplin.plugins.installationDir()}/chrome.css`);
+            await joplin.views.menuItems.create('pasteMarkdownMenu', 'pasteMarkdownPlugin.openDialog', MenuItemLocation.Edit, { accelerator: 'CmdOrCtrl+Alt+V' });
         }
+        console.info('[Paste It] ready');
     },
 });
