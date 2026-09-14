@@ -1,6 +1,7 @@
 import joplin from 'api';
-import { MenuItemLocation, SettingItemType, ToolbarButtonLocation } from 'api/types';
+import { ContentScriptType, MenuItemLocation, SettingItemType, ToolbarButtonLocation } from 'api/types';
 import { defaults, labels, trackingDescription } from './converter';
+import { quoteCommands } from './quote';
 
 const escapeHtml = (value: string) => value.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 joplin.plugins.register({
@@ -18,6 +19,29 @@ joplin.plugins.register({
         await dialogs.addScript(dialog, './webview.css');
         await dialogs.addScript(dialog, './webview.js');
         const isDesktop = (await joplin.versionInfo()).platform === 'desktop';
+        await joplin.contentScripts.register(ContentScriptType.CodeMirrorPlugin, 'pasteItQuoteEditor', './quoteEditor.js');
+        for (const command of quoteCommands) {
+            await joplin.commands.register({
+                name: command.name, label: command.label, iconName: command.iconName,
+                // Use Joplin's actual desktop editor context, not the API's example editorType key.
+                // Mobile has a different context; the note and editor guards below handle it.
+                ...(isDesktop ? { enabledCondition: 'markdownEditorPaneVisible && oneNoteSelected && noteIsMarkdown && !noteIsReadOnly && (!modalDialogVisible || gotoAnythingVisible)' } : {}),
+                execute: async () => {
+                    const note = await joplin.workspace.selectedNote();
+                    if (!note || note.markup_language !== 1) return;
+                    try {
+                        await joplin.commands.execute('editor.execCommand', { name: command.name, args: [] });
+                    } catch (error) {
+                        await dialogs.showMessageBox(`Quote action failed: ${error.message || String(error)}`);
+                    }
+                },
+            });
+            await joplin.views.toolbarButtons.create(`pasteIt-${command.action}`, command.name, ToolbarButtonLocation.EditorToolbar);
+            if (isDesktop) {
+                await joplin.views.menuItems.create(`pasteIt-${command.action}-menu`, command.name, MenuItemLocation.Edit);
+                await joplin.views.menuItems.create(`pasteIt-${command.action}-context`, command.name, MenuItemLocation.EditorContextMenu);
+            }
+        }
         // Let Joplin size the dialog from its host window, independently of content.
         await dialogs.setFitToContent(dialog, false);
         await dialogs.setButtons(dialog, [{ id: 'ok', title: 'Insert into note' }, { id: 'cancel', title: 'Close' }]);

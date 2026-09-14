@@ -1,4 +1,5 @@
 import TurndownService from 'turndown';
+import { quoteLine } from './quote';
 // Domino ships an ambient declaration under a different package name.
 const { createDocument } = require('@mixmark-io/domino') as { createDocument(html: string): Document };
 
@@ -156,6 +157,6 @@ function convertContent(input: { html?: string; text?: string }, options: Option
 export function convert(input: { html?: string; text?: string }, options: Options = defaults): string {
     const markdown = convertContent(input, options);
     return options.addBlockQuote && markdown.trim()
-        ? markdown.split(/\r?\n/).map(line => line.trim() ? `> ${line}` : '>').join('\n')
+        ? markdown.split(/\r?\n/).map(quoteLine).join('\n')
         : markdown;
 }
