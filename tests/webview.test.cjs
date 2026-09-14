@@ -4,7 +4,7 @@ const vm = require('node:vm');
 const fs = require('node:fs');
 const { createWindow } = require('@mixmark-io/domino');
 function setup(mobile = false) {
-    const window = createWindow(`<textarea id="markdown"></textarea><p id="status"></p><fieldset id="options"><input type="checkbox" data-option="removeTextStyling"><input type="checkbox" data-option="addBlockQuote"><input type="checkbox" data-option="cleanTracking" checked><input type="text" data-option="extraTracking" value=""></fieldset><input id="draft"><button id="clear"></button>`);
+    const window = createWindow(`<textarea id="markdown"></textarea><p id="status"></p><fieldset id="options"><input type="checkbox" data-option="removeTextStyling"><input type="checkbox" data-option="addBlockQuote"><input type="checkbox" data-option="tableHtmlLists" checked><input type="checkbox" data-option="cleanTracking" checked><input type="text" data-option="extraTracking" value=""></fieldset><input id="draft"><button id="clear"></button>`);
     const document = window.document;
     const timers = [];
     let focusCount = 0;
@@ -60,4 +60,16 @@ test('mobile does not automatically focus on opening or clearing', () => {
     assert.equal(h.timers.length, 0);
     h.listeners['clear:click']();
     assert.equal(h.focusCount(), 0);
+});
+
+test('table list option switches modes and restores nesting from the original paste', () => {
+    const h = setup();
+    h.paste('<table><tr><th>Items</th></tr><tr><td><ul><li><b>Fruit</b><ol><li>Apple</li></ol></li></ul></td></tr></table>', 'Fruit Apple');
+    const original = h.$('markdown').value;
+    assert.match(original, /<ul><li>\*\*Fruit\*\*<ol><li>Apple<\/li><\/ol><\/li><\/ul>/);
+    const toggle = h.document.querySelector('[data-option="tableHtmlLists"]');
+    toggle.checked = false; h.listeners['options:input']();
+    assert.equal(h.$('markdown').value, '| Items |\n| --- |\n| - **Fruit**<br>1. Apple |');
+    toggle.checked = true; h.listeners['options:input']();
+    assert.equal(h.$('markdown').value, original);
 });

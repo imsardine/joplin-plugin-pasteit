@@ -24,7 +24,7 @@ async function setup(platform) {
     };
     vm.runInNewContext(fs.readFileSync('dist/index.js', 'utf8'), { joplin: api, console, setTimeout, clearTimeout, setInterval, clearInterval });
     await start();
-    return { commands, errors, inserted, copied, opened, replies, rendered, switchNote: () => { note = { ...note, id: 'two' }; } };
+    return { settings, commands, errors, inserted, copied, opened, replies, rendered, switchNote: () => { note = { ...note, id: 'two' }; } };
 }
 for (const platform of ['desktop', 'mobile']) test(`${platform} opens one dialog, starts empty and inserts edited Markdown`, async () => {
     const h = await setup(platform);
@@ -45,4 +45,14 @@ test('cancel never inserts; changed notes are rejected', async () => {
     h.replies.push(() => { h.switchNote(); return { id: 'ok', formData: { paste: { markdown: 'wrong note' } } }; });
     await h.commands['pasteItPlugin.openDialog']();
     assert.deepEqual(h.inserted, []); assert.match(h.errors[0], /selected note changed/);
+});
+
+test('saved table list preference is reflected each time the dialog opens', async () => {
+    const h = await setup('desktop');
+    assert.equal(h.settings.tableHtmlLists, true);
+    await h.commands['pasteItPlugin.openDialog']();
+    assert.match(h.rendered[0], /data-option="tableHtmlLists" type="checkbox" checked/);
+    h.settings.tableHtmlLists = false;
+    await h.commands['pasteItPlugin.openDialog']();
+    assert.match(h.rendered[1], /data-option="tableHtmlLists" type="checkbox" > /);
 });

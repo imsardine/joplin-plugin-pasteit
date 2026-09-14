@@ -5,6 +5,47 @@ const ts = require('typescript');
 require.extensions['.ts'] = (module, filename) => module._compile(ts.transpileModule(fs.readFileSync(filename, 'utf8'), { compilerOptions: { esModuleInterop: true, module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 } }).outputText, filename);
 const { convert, defaults, cleanUrl } = require('../src/converter.ts');
 const html = (value, options = {}) => convert({ html: value }, { ...defaults, ...options });
+test('tables preserve headers, alignment, captions and surrounding paragraphs', () => {
+    assert.equal(html('<p>Before</p><table><caption>Items</caption><thead><tr><th>Name</th><th style="text-align:right">Price</th></tr></thead><tbody><tr><td>Tea</td><td>20</td></tr></tbody></table><p>After</p>'),
+        'Before\n\nItems\n\n| Name | Price |\n| --- | ---: |\n| Tea | 20 |\n\nAfter');
+});
+test('tables without headers retain the first row and pad uneven rows', () => {
+    assert.equal(html('<table><tr><td>A</td><td>B</td></tr><tr><td>C</td></tr></table>'),
+        '|  |  |\n| --- | --- |\n| A | B |\n| C |  |');
+    assert.equal(html('<table><tr><th></th><th>B</th></tr><tr><td></td><td></td></tr></table>'),
+        '|  | B |\n| --- | --- |\n|  |  |');
+});
+test('table cells escape pipes, retain line breaks and honor conversion options', () => {
+    const source = '<table><tr><th>Value</th></tr><tr><td><b>A|B</b><br><a href="https://x.test/?id=1&amp;utm_source=x">Link</a><p><code>x|y</code></p></td></tr></table>';
+    assert.equal(html(source), '| Value |\n| --- |\n| **A\\|B**<br>[Link](https://x.test/?id=1)<br>`x\\|y` |');
+    assert.equal(html(source, { removeTextStyling: true, addBlockQuote: true }),
+        '> | Value |\n> | --- |\n> | A\\|B<br>[Link](https://x.test/?id=1)<br>`x\\|y` |');
+});
+test('merged cells expand into blank placeholders without shifting later cells', () => {
+    assert.equal(html('<table><tr><th colspan="2">Header</th></tr><tr><td rowspan="2">A</td><td>B</td></tr><tr><td>C</td></tr></table>'),
+        '| Header |  |\n| --- | --- |\n| A | B |\n|  | C |');
+});
+test('table lists retain HTML structure with Markdown styling and cleaned links', () => {
+    const source = '<table><tr><th>Items</th></tr><tr><td><ul class="source" onclick="bad()"><li><b>Bold</b><ol start="3"><li><em>Italic</em> <s>Old</s> <code>x|y</code></li></ol></li><li><a href="https://x.test/?id=1&amp;utm_source=x">Link</a></li></ul></td></tr></table>';
+    assert.equal(html(source), '| Items |\n| --- |\n| <ul><li>**Bold**<ol start="3"><li>*Italic* ~~Old~~ `x\\|y`</li></ol></li><li>[Link](https://x.test/?id=1)</li></ul> |');
+    assert.equal(html(source, { removeTextStyling: true, addBlockQuote: true }), '> | Items |\n> | --- |\n> | <ul><li>Bold<ol start="3"><li>Italic Old `x\\|y`</li></ol></li><li>[Link](https://x.test/?id=1)</li></ul> |');
+});
+test('table lists preserve item paragraphs and leave lists outside tables as Markdown', () => {
+    assert.equal(html('<ul><li>Outside</li></ul><table><tr><th><ol><li>Header</li></ol></th></tr><tr><td><ul><li><p>First</p><p>Second</p></li><li>Third<br>Fourth</li></ul></td></tr></table>'),
+        '-   Outside\n\n| <ol><li>Header</li></ol> |\n| --- |\n| <ul><li>First<br>Second</li><li>Third<br>Fourth</li></ul> |');
+});
+test('table lists can use line breaks while retaining Markdown styling and numbering', () => {
+    assert.equal(defaults.tableHtmlLists, true);
+    const source = '<table><tr><th>Items</th></tr><tr><td><ul><li><b>Fruit</b><ol start="3"><li><em>Apple</em></li></ol></li><li>Tea</li></ul></td></tr></table>';
+    assert.equal(html(source, { tableHtmlLists: false }), '| Items |\n| --- |\n| - **Fruit**<br>3. *Apple*<br>- Tea |');
+    assert.equal(html(source, { tableHtmlLists: false, removeTextStyling: true, addBlockQuote: true }), '> | Items |\n> | --- |\n> | - Fruit<br>3. Apple<br>- Tea |');
+});
+test('nested and empty tables do not duplicate rows or lose content', () => {
+    const output = html('<table><tr><th>Outer</th></tr><tr><td><table><tr><td>Inner</td></tr></table></td></tr></table>');
+    assert.equal(output.split('\n').length, 3);
+    assert.equal(output.match(/Inner/g).length, 1);
+    assert.equal(html('<table></table>'), '');
+});
 test('nested semantic formatting and independent toggles', () => {
     assert.equal(html('<p><strong>粗體 <em>斜體</em></strong></p>'), '**粗體 *斜體***');
     assert.equal(html('<b>粗體</b> <i>斜體</i> <del>刪除</del>', { removeTextStyling: true }), '粗體 斜體 刪除');

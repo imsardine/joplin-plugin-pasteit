@@ -28,6 +28,7 @@ Set your defaults under **Settings → Paste It**, or adjust the options for the
 | --- | --- |
 | Remove text styling (except inline code) | Removes bold, italic and strikethrough formatting while keeping inline code, headings, lists, quotes, code blocks and links. Off by default. |
 | Add a block quote level | Presents the pasted content as a quotation. Any quotations already in the content remain nested inside it. Off by default. |
+| Use HTML lists in tables (otherwise use line breaks) | Uses `<ul>`/`<ol>` to preserve list nesting within table cells. Turn off to show list markers and numbers separated by `<br>` instead; nested indentation is lost. Text styling and links remain Markdown in both modes. On by default. |
 | Remove advertising and tracking parameters | Cleans tracking parameters from web links, such as `utm_source`, `utm_campaign`, `fbclid`, `gclid` and `msclkid`. On by default. |
 | Additional parameters to remove | Add parameter names separated by commas, such as `ref, source`, to remove those exact names. Use `track_*` to remove names starting with `track_`, such as `track_id` and `track_source`. Matching ignores case. Requires tracking removal to be enabled. |
 
@@ -57,7 +58,9 @@ Your **Additional parameters to remove** entries extend this list. Other paramet
 
 ## Supported content
 
-The plugin converts common text formatting, headings, lists, quotes, code and links into Markdown. Fonts, colors, page layout and table structure are not preserved. Images contribute their alternative text only. Use Joplin's Markdown editor; Rich Text editor behavior has not been verified.
+The plugin converts common text formatting, headings, lists, quotes, code, links and tables into Markdown. Fonts, colors and page layout are not preserved. Images contribute their alternative text only. Use Joplin's Markdown editor; Rich Text editor behavior has not been verified.
+
+Tables preserve columns, header rows, alignment, and formatting and links within cells. Tables without a header receive an empty header row. Lists within cells use inline HTML (`<ul>`, `<ol>` and `<li>`) by default to preserve nesting. Turn off **Use HTML lists in tables** to use list markers and numbers separated by `<br>` instead, without nested indentation. Text styling and links remain Markdown in both modes. Cell line breaks become `<br>`; merged cells expand into blank placeholders, and nested tables are flattened inside their containing cell.
 
 ### When formatting is unavailable
 
