@@ -1,11 +1,13 @@
 import joplin from 'api';
 import { ContentScriptType, MenuItemLocation, SettingItemType, ToolbarButtonLocation } from 'api/types';
-import { defaults, labels, trackingDescription } from './converter';
+import { convert, defaults, labels, trackingDescription } from './converter';
 import { quoteCommands } from './quote';
+import { cleanupDialogSetting, registerCleanup } from './cleanupDialog';
 
 const escapeHtml = (value: string) => value.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 joplin.plugins.register({
     onStart: async () => {
+        const isDesktop = (await joplin.versionInfo()).platform === 'desktop';
         await joplin.settings.registerSection('pasteIt', { label: 'Paste It', iconName: 'fas fa-paste' });
         const settings = {};
         for (const key of Object.keys(defaults)) settings[key] = {
@@ -13,12 +15,21 @@ joplin.plugins.register({
             section: 'pasteIt', public: true, label: labels[key],
             ...(key === 'cleanTracking' ? { description: trackingDescription } : {}),
         };
+        settings[cleanupDialogSetting] = {
+            value: true, type: SettingItemType.Bool, section: 'pasteIt', public: true,
+            label: 'Show dialog before clearing formatting',
+            description: 'Turn off to clean the selection immediately using your text styling and tracking parameter settings.',
+        };
+        if (isDesktop) settings['pasteShowDialog'] = {
+            value: true, type: SettingItemType.Bool, section: 'pasteIt', public: true,
+            label: 'Show dialog before pasting',
+            description: 'Turn off to paste immediately using your global conversion settings. Available on desktop only.',
+        };
         await joplin.settings.registerSettings(settings);
         const dialogs = joplin.views.dialogs;
         const dialog = await dialogs.create('pasteItPluginDialog');
         await dialogs.addScript(dialog, './webview.css');
         await dialogs.addScript(dialog, './webview.js');
-        const isDesktop = (await joplin.versionInfo()).platform === 'desktop';
         await joplin.contentScripts.register(ContentScriptType.CodeMirrorPlugin, 'pasteItQuoteEditor', './quoteEditor.js');
         for (const command of quoteCommands) {
             await joplin.commands.register({
@@ -52,6 +63,19 @@ joplin.plugins.register({
             active = true;
             try {
                 const note = await joplin.workspace.selectedNote();
+                if (!note || note.markup_language !== 1) throw new Error('Open a Markdown note in the Markdown editor.');
+                if (isDesktop && await joplin.settings.value('pasteShowDialog') === false) {
+                    const options = { ...defaults };
+                    for (const key of Object.keys(defaults)) options[key] = (await joplin.settings.value(key)) ?? defaults[key];
+                    const html = await joplin.clipboard.readHtml();
+                    const plainText = await joplin.clipboard.readText();
+                    const text = convert({ html, text: plainText }, options);
+                    if (!text.trim()) throw new Error('The clipboard has no text to paste.');
+                    const current = await joplin.workspace.selectedNote();
+                    if (!current || current.id !== note.id || current.markup_language !== 1) throw new Error('The selected note changed. Paste again.');
+                    await joplin.commands.execute('insertText', text);
+                    return;
+                }
                 const fields = [];
                 for (const key of Object.keys(defaults)) {
                     const value = await joplin.settings.value(key);
@@ -82,6 +106,7 @@ joplin.plugins.register({
         };
         await joplin.commands.register({ name: 'pasteItPlugin.openDialog', label: 'Paste It…', iconName: 'fas fa-paste', execute: open });
         await joplin.views.toolbarButtons.create('pasteItButton', 'pasteItPlugin.openDialog', ToolbarButtonLocation.EditorToolbar);
+        await registerCleanup(isDesktop);
         if (isDesktop) {
             await joplin.window.loadChromeCssFile(`${await joplin.plugins.installationDir()}/chrome.css`);
             await joplin.views.menuItems.create('pasteItMenu', 'pasteItPlugin.openDialog', MenuItemLocation.Edit, { accelerator: 'CmdOrCtrl+Alt+V' });

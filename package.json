@@ -30,6 +30,9 @@
   },
   "dependencies": {
     "@mixmark-io/domino": "^2.2.0",
+    "mdast-util-from-markdown": "^2.0.3",
+    "mdast-util-gfm": "^3.1.0",
+    "micromark-extension-gfm": "^3.0.0",
     "turndown": "^7.2.4"
   },
   "description": "Paste It for Joplin: convert pasted content to Markdown with formatting options and tracking URL cleanup.",

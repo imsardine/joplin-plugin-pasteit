@@ -87,6 +87,12 @@ test('removing text styling preserves inline code, code blocks and links', () =>
     assert.equal(html('<b>Bold</b> <i>Italic</i> <s>Strike</s> <code>a &lt; b</code>', { removeTextStyling: true }), 'Bold Italic Strike `a < b`');
     assert.match(html('<pre><code>example</code></pre>', { removeTextStyling: true }), /```\nexample\n```/);
 });
+test('paste handles highlighting in HTML and plain Markdown with styling cleanup enabled', () => {
+    assert.equal(html('<mark>Highlight</mark>'), '==Highlight==');
+    assert.equal(html('<mark><b>Highlight</b></mark>', { removeTextStyling: true }), 'Highlight');
+    assert.equal(convert({ text: '==Highlight== **Bold** `==Code==`' }, { ...defaults, removeTextStyling: true }), 'Highlight Bold `==Code==`');
+    assert.equal(convert({ text: '==Keep==' }), '==Keep==');
+});
 
 test('block quote adds exactly one level including existing quotes and blank lines', () => {
     assert.equal(html('<p>Hello</p><blockquote>Quoted</blockquote>', { addBlockQuote: true }), '> Hello\n>\n> > Quoted');

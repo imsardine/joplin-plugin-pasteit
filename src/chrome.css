@@ -1,10 +1,15 @@
-/* Scope host-window sizing to Paste It's iframe; leave other dialogs alone. */
-.user-webview-dialog:has(iframe[id$="pasteItPluginDialog"]) > .content {
+/* Give both plugin dialogs room for options without affecting other plugins. */
+.user-webview-dialog:has(iframe[id$="pasteItPluginDialog"], iframe[id$="pasteItCleanupDialog"]) > .content {
     box-sizing: border-box;
     width: min(90vw, 52rem);
+}
+.user-webview-dialog:has(iframe[id$="pasteItPluginDialog"]) > .content {
     height: min(90vh, 54rem);
 }
-.user-webview-dialog:has(iframe[id$="pasteItPluginDialog"]) .user-dialog-wrapper {
+.user-webview-dialog:has(iframe[id$="pasteItCleanupDialog"]) > .content {
+    height: min(90vh, 34rem);
+}
+.user-webview-dialog:has(iframe[id$="pasteItPluginDialog"], iframe[id$="pasteItCleanupDialog"]) .user-dialog-wrapper {
     min-width: 0;
     min-height: 0;
 }

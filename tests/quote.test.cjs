@@ -69,7 +69,7 @@ test('CM6 commands use a single transaction and respect read-only state', () => 
     assert.equal(apply('> A\n> B', transactions[1].changes), 'A\nB');
 });
 test('legacy editor handles reversed selections in one operation and guards read-only state', () => {
-    const codeMirror = { commands: {} };
+    const codeMirror = { commands: {}, defineOption: () => {} };
     editorPlugin().plugin(codeMirror);
     let text = 'A\nB', operations = 0, focused = 0, readOnly = false;
     const editor = {
