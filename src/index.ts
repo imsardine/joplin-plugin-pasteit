@@ -85,9 +85,12 @@ joplin.plugins.register({
                     if (key === 'cleanTracking') fields.push(`<details><summary>Parameters removed by default</summary><p>${escapeHtml(trackingDescription)}</p></details>`);
                 }
                 await dialogs.setHtml(dialog, `<div class="paste-dialog ${isDesktop ? 'desktop' : 'mobile'}"><h2>Paste It</h2><form name="paste" data-session="${++session}">
-                    <label for="markdown">Markdown (editable)</label><textarea id="markdown" name="markdown" rows="12" ${isDesktop ? 'autofocus' : ''} placeholder="Paste using Ctrl/Cmd+V or long-press → Paste. Markdown replaces the pasted content automatically."></textarea>
-                    <button id="clear" type="button">Clear</button>
+                    <div class="content-tabs" role="tablist" aria-label="Pasted content">
+                    <button type="button" role="tab" id="tab-markdown" aria-controls="panel-markdown" aria-selected="true" tabindex="0">Markdown (editable)</button>
+                    </div>
                     <p id="status" role="status" aria-live="polite">Ready to paste.</p>
+                    <div id="content-panels"><div id="panel-markdown" role="tabpanel" aria-labelledby="tab-markdown"><textarea id="markdown" aria-describedby="status" aria-label="Markdown (editable)" name="markdown" rows="12" ${isDesktop ? 'autofocus' : ''} placeholder="Paste using Ctrl/Cmd+V or long-press → Paste. Markdown replaces the pasted content automatically."></textarea></div></div>
+                    <button id="clear" type="button">Clear</button>
                     <fieldset id="options"><legend>Conversion options</legend>${fields.join('')}</fieldset>
                     <p>Changing options rebuilds Markdown from the original paste and replaces manual edits.</p>
                     </form></div>`);

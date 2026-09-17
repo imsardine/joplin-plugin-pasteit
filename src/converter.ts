@@ -1,5 +1,6 @@
 import TurndownService from 'turndown';
 import { quoteLine } from './quote';
+import { normalizeLayoutTables } from './layoutTables';
 // Domino ships an ambient declaration under a different package name.
 const { createDocument } = require('@mixmark-io/domino') as { createDocument(html: string): Document };
 
@@ -62,6 +63,7 @@ function convertContent(input: { html?: string; text?: string }, options: Option
     }
     const doc = createDocument(input.html);
     const body = doc.body;
+    normalizeLayoutTables(body);
     for (const node of Array.from(body.querySelectorAll('script,style,iframe,object,embed,form,input,button,svg,template,noscript'))) node.parentNode.removeChild(node);
     // Common clipboard producers use inline CSS instead of semantic tags.
     for (const node of Array.from(body.querySelectorAll('[style]'))) {
@@ -88,7 +90,10 @@ function convertContent(input: { html?: string; text?: string }, options: Option
             const href = (node as HTMLElement).getAttribute('href') || '';
             if (!safeUrl(href)) return content;
             const url = cleanUrl(href.trim(), options);
-            return `[${content || service.escape(url)}](${destination(url)})`;
+            // Block wrappers in link buttons add paragraph boundaries. Flatten
+            // those boundaries without changing inline formatting/code spaces.
+            const label = content.trim().replace(/[ \t]*\r?\n(?:[ \t]*\r?\n)*[ \t]*/g, ' ');
+            return `[${label || service.escape(url)}](${destination(url)})`;
         },
     });
     service.addRule('images', {

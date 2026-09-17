@@ -20,4 +20,11 @@ button:hover { background: var(--joplin-background-color-hover, var(--joplin-bac
 button:focus-visible { outline: 2px solid var(--joplin-color-focus, currentColor); outline-offset: 2px; }
 fieldset { margin: 12px 0; }
 input[type=text] { display: block; box-sizing: border-box; width: 100%; }
-#status { white-space: pre-wrap; }
+#status { white-space: pre-wrap; margin: 8px 0 0; font-size: 0.9em; }
+[hidden] { display: none !important; }
+.content-tabs { display: flex; gap: 4px; flex-wrap: wrap; }
+.content-tabs button { padding: 6px 10px; margin: 0; }
+.content-tabs [aria-selected="true"] { border-bottom: 3px solid var(--joplin-color-focus, currentColor); font-weight: bold; }
+[role="tabpanel"] textarea { height: clamp(8rem, 28vh, 16rem); resize: none; overflow: auto; }
+.paste-dialog { max-height: 100vh; overflow-y: auto; }
+.binary-format { padding: 6px 10px; align-self: center; font-size: 0.9em; }

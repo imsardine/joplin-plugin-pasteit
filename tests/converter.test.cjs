@@ -101,3 +101,125 @@ test('block quote adds exactly one level including existing quotes and blank lin
     assert.equal(convert({ text: 'First\n  \n\t\nLast' }, { ...defaults, addBlockQuote: true }), '> First\n>\n>\n> Last');
     assert.equal(defaults.addBlockQuote, false);
 });
+
+const layoutGrid = (width, count = 3) => '<div>' + Array.from({ length: count }, (_, r) =>
+    `<div style="display:grid;grid-template-columns:repeat(${width}, 1fr);border-bottom:1px solid gray">` +
+    Array.from({ length: width }, (_, c) => `<div>${r}:${c}</div>`).join('') + '</div>').join('') + '</div>';
+test('grid tables infer two, four and five columns and retain ambiguous first rows', () => {
+    for (const width of [2, 4, 5]) {
+        const output = html(layoutGrid(width));
+        assert.equal(output.split('\n').length, 5);
+        assert.equal(output.split('\n')[0], '| ' + Array(width).fill('').join(' | ') + ' |');
+        assert.match(output, /0:0/);
+        assert.match(output, new RegExp(`2:${width - 1}`));
+    }
+});
+test('ARIA tables support rowgroups, headers, formatting and conversion options', () => {
+    const source = '<div role="table"><div role="rowgroup"><div role="row"><div role="columnheader">Name</div><div role="columnheader">Value</div></div></div><div role="rowgroup"><div role="row"><div role="rowheader"><b>A|B</b></div><div role="cell"><a href="https://x.test/?utm_source=a">Link</a><br><svg aria-label="Available"></svg></div></div></div></div>';
+    assert.equal(html(source), '| Name | Value |\n| --- | --- |\n| **A\\|B** | [Link](https://x.test/)<br>Available |');
+    assert.match(html(source, { removeTextStyling: true, addBlockQuote: true }), /^> \| Name/);
+    assert.doesNotMatch(html(source, { removeTextStyling: true }), /\*\*/);
+});
+test('ordinary cards, partial rows, reordered grids and missing layout hints stay non-tabular', () => {
+    const sources = [
+        '<div class="grid grid-cols-2"><div><h3>One</h3><p>Text</p></div><div><h3>Two</h3><p>Text</p></div></div>',
+        layoutGrid(3).replace('<div>1:2</div>', ''),
+        layoutGrid(3).replace('<div>1:2</div>', '<div style="order:1">1:2</div>'),
+        layoutGrid(3).replace(/style="[^"]*"/g, ''),
+        layoutGrid(3).replace(/border-bottom:1px solid gray/g, ''),
+        layoutGrid(3).replace('0:0', '<h3>Card</h3>'),
+        layoutGrid(3).replace('0:0', '<img alt="Card">'),
+        layoutGrid(3).replace('0:0', '0:0').replace('<div>1:2</div>', '<div class="md:col-span-2">1:2</div>'),
+    ];
+    for (const source of sources) assert.doesNotMatch(html(source), /\| ---/);
+});
+test('unnamed SVG geometry is not guessed and recognized icons retain text', () => {
+    const source = layoutGrid(2).replace('1:0', '<svg><path d="M0 0"></path></svg>').replace('1:1', '<svg class="lucide-check"></svg>');
+    assert.match(html(source), /\|  \| ✓ \|/);
+});
+test('grids that wrap cells or change column count at a breakpoint are not tables', () => {
+    assert.doesNotMatch(html(layoutGrid(3).replace(/repeat\(3, 1fr\)/g, 'repeat(2, 1fr)')), /\| ---/);
+    const source = layoutGrid(3).replace(/style="[^"]*"/g, 'class="grid grid-cols-3 md:grid-cols-2 border-b"');
+    assert.doesNotMatch(html(source), /\| ---/);
+    assert.doesNotMatch(html(layoutGrid(3).replace(/repeat\(3, 1fr\)/g, 'repeat(auto-fit, minmax(100px, 1fr))')), /\| ---/);
+});
+
+test('repeated grid rows infer headers and retain accessible icon text', () => {
+    const source = '<div>' + [
+        '<div class="grid grid-cols-3 border-b"><div class="header">Item</div><div class="header text-center">Small</div><div class="header text-center">Large</div></div>',
+        '<div class="grid grid-cols-3 border-b"><div>Storage</div><div>10 GB</div><div>50 GB</div></div>',
+        '<div class="grid grid-cols-3"><div>Backup</div><div><svg aria-label="Included"></svg></div><div><svg aria-label="Included"></svg></div></div>',
+    ].join('') + '</div>';
+    assert.equal(html(source), '| Item | Small | Large |\n| --- | :---: | :---: |\n| Storage | 10 GB | 50 GB |\n| Backup | Included | Included |');
+});
+const groupedGrid = () => fs.readFileSync(require('node:path').join(__dirname, 'fixtures/grouped-grid.html'), 'utf8');
+const groupedExpected = '### Storage\n\n|  | Small | Large |\n| --- | --- | --- |\n| Capacity | **10 GB** | 50 GB |\n| Backup | No | Yes |\n\n### Extras\n\n|  | Small | Large |\n| --- | --- | --- |\n| Support | No | Priority |';
+test('grouped grids recover shared DOM headers and leave only cell values', () => {
+    assert.equal(html(groupedGrid()), groupedExpected);
+    assert.doesNotMatch(html(groupedGrid(), { removeTextStyling: true }), /\*\*/);
+});
+test('changing label keys and all coordinate text preserves the same output structure', () => {
+    const replace = text => text.replace(/Small/g, 'Entry').replace(/Large/g, 'Full').replace(/Backup/g, 'Archive');
+    const source = replace(groupedGrid()).replace(/Tier:/g, 'Anything:').replace(/Item:/g, 'Another:');
+    assert.equal(html(source), replace(groupedExpected));
+});
+test('missing or mismatched DOM headers do not fabricate column names or strip descriptions', () => {
+    const source = groupedGrid().replace('<div>Small</div><div>Large</div>', '<div>Other</div><div>Unknown</div>');
+    assert.match(html(source), /Tier: Small, Item: Backup, No/);
+    assert.doesNotMatch(html(source), /\|  \| Other \| Unknown \|/);
+});
+test('a section with a single separated heading row retains its data', () => {
+    const source = '<h3>Extras</h3><div><div class="grid grid-cols-2 border-b"><div><h6>Backup</h6></div><div>Included</div></div></div>';
+    assert.equal(html(source), '### Extras\n\n|  |  |\n| --- | --- |\n| Backup | Included |');
+});
+test('coordinate removal preserves punctuation in values and literal header characters', () => {
+    const source = groupedGrid().replace(/Small/g, 'A (basic)').replace(/Backup/g, 'Copy [daily]')
+        .replace(/, No</g, ', Limited, with review<');
+    const expected = groupedExpected.replace(/Small/g, 'A (basic)').replace(/Backup/g, 'Copy \\[daily\\]')
+        .replace(/\| No \|/g, '| Limited, with review |');
+    assert.equal(html(source), expected);
+});
+test('incomplete copies retain descriptions and never invent missing headers', () => {
+    const source = groupedGrid().replace('<div class="grid grid-cols-3"><div></div><div>Small</div><div>Large</div></div>', '');
+    const output = html(source);
+    assert.match(output, /\|  \|  \|  \|/);
+    assert.match(output, /Tier: Small, Item: Backup, No/);
+});
+test('header navigation and visible cell formatting survive normalization', () => {
+    const source = groupedGrid().replace('<div>Small</div>', '<div>Small<a href="https://example.test/">Choose</a></div>')
+        .replace('<b>10 GB</b>', '<a href="https://example.test/storage"><b>10 GB</b></a>');
+    const output = html(source);
+    assert.match(output, /\|  \| Small \| Large \|/);
+    assert.match(output, /\[Choose\]\(https:\/\/example.test\/\)/);
+    assert.match(output, /\[\*\*10 GB\*\*\]\(https:\/\/example.test\/storage\)/);
+    assert.doesNotMatch(output, /Tier:|Item:/);
+});
+const clippedGrid = () => fs.readFileSync(require('node:path').join(__dirname, 'fixtures/clipped-grid.html'), 'utf8');
+test('clipboard selection may omit the empty corner and last icon description', () => {
+    const output = html(clippedGrid());
+    assert.match(output, /\|  \| Basic \| Extra \|\n\| --- \| --- \| --- \|\n\| Storage \| 10 GB \| 20 GB \|\n\| Backup, daily \| Included \| Included \|/);
+    assert.doesNotMatch(output, /Column:|Row:/);
+});
+test('icon recovery requires the same symbol and unambiguous evidence', () => {
+    const changed = clippedGrid().replace('<div><svg><use href="/icons.svg#tick"></use></svg></div>', '<div><svg><use href="/icons.svg#other"></use></svg></div>');
+    assert.match(html(changed), /\| Backup, daily \| Included \|  \|/);
+    const conflicting = clippedGrid().replace('<div>10 GB<span', '<div><svg><use href="/icons.svg#tick"></use></svg><span')
+        .replace('Row: Storage, 10 GB', 'Row: Storage, Excluded');
+    assert.match(html(conflicting), /\| Backup, daily \| Included \|  \|/);
+});
+test('named rows with no missing grid track are not treated as clipped headers', () => {
+    const source = clippedGrid().replace('grid-template-columns:1fr repeat(2,1fr)', 'grid-template-columns:repeat(2,1fr)');
+    assert.doesNotMatch(html(source), /\|  \| Basic \| Extra \|/);
+    assert.match(html(source), /Column: Basic, Row: Backup, daily, Included/);
+});
+test('link labels discard wrapper whitespace and flatten block boundaries', () => {
+    assert.equal(html('<a href="https://example.test/plus"><div><p> Get Plus </p></div></a>'), '[Get Plus](https://example.test/plus)');
+    assert.equal(html('<a href="https://example.test/plus"><div>Get</div><div><strong>Plus</strong></div></a>'), '[Get **Plus**](https://example.test/plus)');
+    assert.equal(html('<a href="https://example.test/"><div><code>a b</code></div></a>'), '[`a b`](https://example.test/)');
+    assert.equal(html('<a href="https://example.test/"><div> </div></a>'), '[https://example.test/](https://example.test/)');
+});
+test('link whitespace cleanup applies in paragraphs and table cells alike', () => {
+    const link = '<a href="https://example.test/plus"><div><p>Get Plus</p></div></a>';
+    assert.equal(html('<p>Before</p>' + link + '<p>After</p>'), 'Before\n\n[Get Plus](https://example.test/plus)\n\nAfter');
+    assert.equal(html('<table><tr><th>Action</th></tr><tr><td>' + link + '</td></tr></table>'), '| Action |\n| --- |\n| [Get Plus](https://example.test/plus) |');
+});

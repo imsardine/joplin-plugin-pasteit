@@ -1,0 +1,27 @@
+<section style="--columns:2">
+  <div class="grid grid-cols-3"><div></div><div>Small</div><div>Large</div></div>
+  <section>
+    <h3>Storage</h3>
+    <div>
+      <div class="grid grid-cols-[1fr_repeat(var(--columns),1fr)] border-b">
+        <div aria-hidden="true" class="absolute h-px"></div>
+        <div><h6>Capacity</h6></div>
+        <div><b>10 GB</b><span class="sr-only">Tier: Small, Item: Capacity, 10 GB</span></div>
+        <div>50 GB<span class="sr-only">Tier: Large, Item: Capacity, 50 GB</span></div>
+      </div>
+      <div class="grid grid-cols-[1fr_repeat(var(--columns),1fr)] border-b">
+        <div><h6>Backup</h6></div>
+        <div><svg><use href="#icon"></use></svg><span class="sr-only">Tier: Small, Item: Backup, No</span></div>
+        <div><svg><use href="#icon"></use></svg><span class="sr-only">Tier: Large, Item: Backup, Yes</span></div>
+      </div>
+    </div>
+  </section>
+  <section>
+    <h3>Extras</h3>
+    <div><div class="grid grid-cols-[1fr_repeat(var(--columns),1fr)] border-b">
+      <div><h6>Support</h6></div>
+      <div><svg><use href="#icon"></use></svg><span class="sr-only">Tier: Small, Item: Support, No</span></div>
+      <div>Priority<span class="sr-only">Tier: Large, Item: Support, Priority</span></div>
+    </div></div>
+  </section>
+</section>

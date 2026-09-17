@@ -2,6 +2,8 @@
 
 Tools for pasting and editing Markdown in Joplin 3.0+ on desktop and mobile. Convert copied web content—including tables and lists—to Markdown, clear formatting and remove tracking parameters from links, and toggle block quotes in the editor.
 
+**Tables beyond `<table>`:** converts recognizable tables built with CSS grids or accessibility markup to Markdown.
+
 ## Install
 
 Open **Settings → Plugins** in Joplin, search for **Paste It**, and select **Install**. Restart Joplin when prompted.
@@ -17,6 +19,8 @@ Open **Settings → Plugins** in Joplin, search for **Paste It**, and select **I
 
 Choose your options before editing the Markdown: changing an option replaces manual edits. Use **Clear** to start over.
 
+For troubleshooting, the **📋** tabs list all received clipboard types. Conversion currently uses only `text/html` and `text/plain`.
+
 On desktop, turn off **Show dialog before pasting** under **Settings → Paste It** to paste immediately using your global conversion settings. This setting is available only on desktop; mobile always opens the paste dialog.
 
 On Android, use the standard long-press **Paste** action. **Paste as plain text** and keyboard clipboard history may discard formatting.
@@ -30,9 +34,11 @@ The plugin converts common text formatting, headings, lists, quotes, code, links
 
 Tables preserve columns, headers, alignment, and formatting and links within cells. Lists can retain their nesting or use simple line breaks (see **Options**). Merged cells and nested tables are simplified to fit Markdown tables.
 
+Some visual tables may remain plain text if the copied content does not retain enough table structure.
+
 #### When formatting is unavailable
 
-Some apps and paste methods provide only plain text. The dialog will let you know when source formatting is unavailable. You can still edit and insert the text and clean its web links, but lost formatting cannot be recovered. If the text already contains Markdown, **Remove text styling** can remove its styling, including `==highlight==`.
+Some apps and paste methods provide only plain text. The dialog will let you know when source formatting is unavailable. You can still edit and insert the text and clean its web links, but lost formatting cannot be recovered. If the text already contains Markdown, **Remove text styling** can remove its styling.
 
 ### Quote / Unquote
 

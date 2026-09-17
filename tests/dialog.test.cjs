@@ -38,8 +38,10 @@ for (const platform of ['desktop', 'mobile']) test(`${platform} opens one dialog
     assert.notEqual(h.rendered[0], h.rendered[1]);
     assert.doesNotMatch(h.rendered[1], /saved-draft|Hello/);
     assert.match(h.rendered[1], /<textarea[^>]*><\/textarea>/);
+    assert.equal((h.rendered[1].match(/role="tab"/g) || []).length, 1);
+    assert.equal((h.rendered[1].match(/role="tabpanel"/g) || []).length, 1);
     assert.equal(/<textarea[^>]*\bautofocus\b/.test(h.rendered[1]), platform === 'desktop');
-    assert.match(h.rendered[1], /<\/textarea>\s*<button id="clear"/);
+    assert.match(h.rendered[1], /<\/textarea><\/div><\/div>\s*<button id="clear"/);
 });
 test('cancel never inserts; changed notes are rejected', async () => {
     const h = await setup('mobile'); await h.commands['pasteItPlugin.openDialog']();
